@@ -33,10 +33,10 @@ func buildCommand(basename string) *cobra.Command {
 		Use:   basename,
 		Short: "Start up the client side endpoint",
 		Long: `Establish a fast&security tunnel,
-make you can access remote TCP/UNIX application like local application.
+make you can access remote TCP/UDP/UNIX application like local application.
 	   
 Find more quic-tun information at:
-	https://github.com/kungze/quic-tun/blob/master/README.md`,
+	https://github.com/banqueci/tun/blob/master/README.md`,
 		RunE: runCommand,
 	}
 	// Initialize the flags needed to start the server
