@@ -39,6 +39,12 @@ type tunnel struct {
 	connCache *classifier.HeaderCache
 }
 
+type UdpMsg struct {
+	Local   string
+	Remote  string
+	Message []byte
+}
+
 // Before the tunnel establishment, client endpoint and server endpoint need to
 // process handshake steps (client endpoint send token, server endpont parse and verify token)
 func (t *tunnel) HandShake(ctx context.Context) bool {
@@ -163,6 +169,7 @@ func (t *tunnel) fillProperties(ctx context.Context) {
 	t.CreatedAt = time.Now().String()
 }
 
+//stream2Conn 将从stream中获取的数据写入到tcp连接中
 func (t *tunnel) stream2Conn(logger log.Logger, wg *sync.WaitGroup, forwardNumChan chan<- int) {
 	defer func() {
 		(*t.Stream).Close()
@@ -179,6 +186,7 @@ func (t *tunnel) stream2Conn(logger log.Logger, wg *sync.WaitGroup, forwardNumCh
 	}
 }
 
+//conn2Stream 将从tcp连接中获取到的数据写入到stream中
 func (t *tunnel) conn2Stream(logger log.Logger, wg *sync.WaitGroup, forwardNumChan chan<- int) {
 	defer func() {
 		(*t.Stream).Close()
