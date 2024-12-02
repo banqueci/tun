@@ -28,17 +28,18 @@ var ClientAppChList map[string]chan tunnel.UdpMsg
 func (s *ServerEndpoint) Start() {
 	// Listen a quic(UDP) socket.
 	cfg := &quic.Config{
+		KeepAlive:       true,
 		EnableDatagrams: true,
 	}
 	listener, err := quic.ListenAddr(s.Address, s.TlsConfig, cfg)
 	if err != nil {
 		panic(err)
 	}
-	SendCh = make(chan tunnel.UdpMsg)
+	SendCh = make(chan tunnel.UdpMsg, 1024)
 	defer close(SendCh)
 	ClientAppAddrList = make(map[string]string)
 	ClientAppChList = make(map[string]chan tunnel.UdpMsg)
-
+	gob.Register(tunnel.UdpMsg{})
 	defer listener.Close()
 	log.Infow("Server endpoint start up successful", "listen address", listener.Addr())
 	for {
@@ -153,17 +154,16 @@ func readMsgFromDatagram(ctx context.Context, session quic.Session) {
 			log.Info("Received context cancellation. Exiting goroutine: readMsgFromDatagram")
 			return
 		default:
-			log.Info("====1、从datagram读取数据====")
 			//监听datagram消息
 			data, err := session.ReceiveMessage()
 			if err != nil {
 				log.Errorf("Receive datagram msg failed! err: %s", err.Error())
 				return
 			}
+			log.Infof("====1、从datagram读取数据====%s", data)
 			if data != nil {
 				var msg tunnel.UdpMsg
-				n := len(data)
-				dec := gob.NewDecoder(bytes.NewReader(data[:n]))
+				dec := gob.NewDecoder(bytes.NewReader(data))
 				err := dec.Decode(&msg)
 				if err != nil {
 					log.Errorf("Decode message failed! err: %S", err.Error())
@@ -177,7 +177,7 @@ func readMsgFromDatagram(ctx context.Context, session quic.Session) {
 					log.Info("====1.1、新建channel,写入数据====")
 					//新增/更新地址map记录、channel、channel记录
 					ClientAppAddrList[clientIp] = serverIp
-					channelA := make(chan tunnel.UdpMsg)
+					channelA := make(chan tunnel.UdpMsg, 1024)
 					ClientAppChList[clientIp] = channelA
 					ctx1 := context.Background()
 					go readMsgFromUdpServer(ctx1, clientIp)
@@ -213,7 +213,7 @@ func sendMsgToDatagram(ctx context.Context, session quic.Session) {
 				log.Fatalf("Send message to datagram failed! err: %s", err.Error())
 				return
 			}
-			log.Infof("====3、message:%s====", string(msg.Message))
+			log.Infof("====3、message:====%s", string(msg.Message))
 		case <-ctx.Done():
 			log.Info("Received context cancellation. Exiting goroutine: sendMsgToDatagram")
 			return

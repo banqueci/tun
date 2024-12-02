@@ -108,6 +108,8 @@ func (c *ClientEndpoint) Start() {
 
 			ClientAppAddrList = make(map[string]*net.UDPAddr)
 
+			gob.Register(tunnel.UdpMsg{})
+
 			var wg sync.WaitGroup
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -162,8 +164,6 @@ func handshake(ctx context.Context, stream *quic.Stream, hsh *tunnel.HandshakeHe
 
 func udp2Datagram(ctx context.Context, conn *net.UDPConn, session quic.Session, logger log.Logger, wg *sync.WaitGroup) {
 	defer wg.Done()
-	var buf1 bytes.Buffer
-	enc := gob.NewEncoder(&buf1)
 
 	buf := make([]byte, 65536)
 	for {
@@ -189,11 +189,14 @@ func udp2Datagram(ctx context.Context, conn *net.UDPConn, session quic.Session, 
 				Message: buf[:n],
 			}
 			//消息编码
+			var buf1 bytes.Buffer
+			enc := gob.NewEncoder(&buf1)
 			err = enc.Encode(msg)
 			if err != nil {
 				log.Fatalf("Encode message failed! err: %s", err.Error())
 			}
 			res := buf1.Bytes()
+
 			//res := Msg2ByteArr(buf1, enc, msg)
 			//发送
 			err = session.SendMessage(res)
@@ -202,7 +205,7 @@ func udp2Datagram(ctx context.Context, conn *net.UDPConn, session quic.Session, 
 			}
 
 			logger.Infof("Forward message to Quic server, buf[:n]:%s", string(buf[:n]))
-			logger.Infof("Forward message to Quic server, res:%s", buf1.String())
+			log.Infof("====1、向datagram写入数据====%s", res)
 		}
 	}
 
